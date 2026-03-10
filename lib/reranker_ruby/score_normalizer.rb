@@ -9,6 +9,10 @@ module RerankerRuby
       return results if results.empty?
 
       scores = results.map(&:score)
+      if scores.any? { |s| s.nan? || s.infinite? }
+        return results.map { |r| with_score(r, 0.0) }
+      end
+
       min = scores.min
       max = scores.max
       range = max - min
@@ -23,6 +27,10 @@ module RerankerRuby
       return results if results.empty?
 
       scores = results.map(&:score)
+      if scores.any? { |s| s.nan? || s.infinite? }
+        return results.map { |r| with_score(r, 0.0) }
+      end
+
       max_score = scores.max
       exps = scores.map { |s| Math.exp(s - max_score) } # subtract max for numerical stability
       sum = exps.sum
@@ -34,6 +42,13 @@ module RerankerRuby
 
     # Sigmoid normalization — each score independently mapped to [0, 1]
     def self.sigmoid(results)
+      return results if results.empty?
+
+      scores = results.map(&:score)
+      if scores.any? { |s| s.nan? || s.infinite? }
+        return results.map { |r| with_score(r, 0.0) }
+      end
+
       results.map { |r| with_score(r, 1.0 / (1.0 + Math.exp(-r.score))) }
     end
 

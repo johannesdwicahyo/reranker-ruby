@@ -21,6 +21,7 @@ module RerankerRuby
       end
 
       results = Array.new(queries.length)
+      errors = []
       mutex = Mutex.new
       queue = Queue.new
 
@@ -30,14 +31,19 @@ module RerankerRuby
       workers = threads.times.map do
         Thread.new do
           while (item = queue.pop)
-            query, idx = item
-            result = reranker.rerank(query, documents, top_k: top_k)
-            mutex.synchronize { results[idx] = result }
+            begin
+              query, idx = item
+              result = reranker.rerank(query, documents, top_k: top_k)
+              mutex.synchronize { results[idx] = result }
+            rescue => e
+              mutex.synchronize { errors << e }
+            end
           end
         end
       end
 
       workers.each(&:join)
+      raise errors.first if errors.any?
       results
     end
   end

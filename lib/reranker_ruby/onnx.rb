@@ -26,7 +26,8 @@ module RerankerRuby
     end
 
     def rerank(query, documents, top_k: 10)
-      with_cache(query, documents) do
+      validate_inputs!(query, documents, top_k)
+      with_cache(query, documents, top_k: top_k) do
         texts = extract_texts(documents)
 
         scores = texts.map { |text| score_pair(query, text) }

@@ -6,30 +6,39 @@ module RerankerRuby
       def initialize(ttl: 3600)
         @ttl = ttl
         @store = {}
+        @mutex = Mutex.new
       end
 
       def get(key)
-        entry = @store[key]
-        return nil unless entry
+        @mutex.synchronize do
+          entry = @store[key]
+          return nil unless entry
 
-        if Time.now.to_f - entry[:time] > @ttl
-          @store.delete(key)
-          return nil
+          if Time.now.to_f - entry[:time] > @ttl
+            @store.delete(key)
+            return nil
+          end
+
+          entry[:value]
         end
-
-        entry[:value]
       end
 
       def set(key, value)
-        @store[key] = { value: value, time: Time.now.to_f }
+        @mutex.synchronize do
+          @store[key] = { value: value, time: Time.now.to_f }
+        end
       end
 
       def clear
-        @store.clear
+        @mutex.synchronize do
+          @store.clear
+        end
       end
 
       def size
-        @store.size
+        @mutex.synchronize do
+          @store.size
+        end
       end
     end
   end

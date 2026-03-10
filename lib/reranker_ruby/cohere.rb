@@ -12,8 +12,9 @@ module RerankerRuby
     end
 
     def rerank(query, documents, top_k: 10, model: nil)
+      validate_inputs!(query, documents, top_k)
       instrument(query: query, document_count: documents.length, top_k: top_k) do
-        with_cache(query, documents) do
+        with_cache(query, documents, top_k: top_k) do
           texts = extract_texts(documents)
 
           response = post(API_URL, {

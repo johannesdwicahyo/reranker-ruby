@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "json"
+
 module RerankerRuby
   module Cache
     class Redis
@@ -13,11 +15,20 @@ module RerankerRuby
         data = @redis.get("#{@prefix}#{key}")
         return nil unless data
 
-        Marshal.load(data) # rubocop:disable Security/MarshalLoad
+        parsed = JSON.parse(data)
+        parsed.map do |h|
+          Result.new(
+            text: h["text"],
+            score: h["score"],
+            index: h["index"],
+            metadata: h["metadata"] || {}
+          )
+        end
       end
 
       def set(key, value)
-        @redis.setex("#{@prefix}#{key}", @ttl, Marshal.dump(value))
+        serialized = JSON.generate(value.map(&:to_h))
+        @redis.setex("#{@prefix}#{key}", @ttl, serialized)
       end
 
       def clear

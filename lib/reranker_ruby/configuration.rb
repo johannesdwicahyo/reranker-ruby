@@ -66,7 +66,10 @@ module RerankerRuby
 
   class << self
     def configuration
-      @configuration ||= Configuration.new
+      @config_mutex ||= Mutex.new
+      @config_mutex.synchronize do
+        @configuration ||= Configuration.new
+      end
     end
 
     def configure
@@ -74,13 +77,19 @@ module RerankerRuby
     end
 
     def reset_configuration!
-      @configuration = Configuration.new
-      @reranker = nil
+      @config_mutex ||= Mutex.new
+      @config_mutex.synchronize do
+        @configuration = Configuration.new
+        @reranker = nil
+      end
     end
 
     # Global reranker instance built from configuration
     def reranker
-      @reranker ||= configuration.build_reranker
+      @config_mutex ||= Mutex.new
+      @config_mutex.synchronize do
+        @reranker ||= configuration.build_reranker
+      end
     end
 
     # Convenience method for quick reranking
