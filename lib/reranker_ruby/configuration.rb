@@ -2,14 +2,16 @@
 
 module RerankerRuby
   class Configuration
-    attr_accessor :default_provider, :cohere_api_key, :jina_api_key,
+    attr_accessor :default_provider, :cohere_api_key, :jina_api_key, :voyage_api_key,
                   :default_model, :default_top_k, :cache_store, :cache_ttl,
-                  :logger, :onnx_model, :onnx_model_path, :onnx_cache_dir
+                  :logger, :onnx_model, :onnx_model_path, :onnx_cache_dir,
+                  :timeout, :max_retries
 
     def initialize
       @default_provider = :cohere
       @cohere_api_key = nil
       @jina_api_key = nil
+      @voyage_api_key = nil
       @default_model = nil
       @default_top_k = 10
       @cache_store = nil
@@ -18,6 +20,8 @@ module RerankerRuby
       @onnx_model = nil
       @onnx_model_path = nil
       @onnx_cache_dir = nil
+      @timeout = 30
+      @max_retries = 3
     end
 
     # Build a reranker instance from configuration
@@ -35,6 +39,11 @@ module RerankerRuby
         opts = { api_key: jina_api_key, cache: cache }
         opts[:model] = default_model if default_model
         Jina.new(**opts)
+      when :voyage
+        raise Error, "voyage_api_key is required" unless voyage_api_key
+        opts = { api_key: voyage_api_key, cache: cache, timeout: timeout, max_retries: max_retries }
+        opts[:model] = default_model if default_model
+        Voyage.new(**opts)
       when :onnx
         opts = { cache: cache }
         opts[:model] = onnx_model if onnx_model
@@ -66,10 +75,7 @@ module RerankerRuby
 
   class << self
     def configuration
-      @config_mutex ||= Mutex.new
-      @config_mutex.synchronize do
-        @configuration ||= Configuration.new
-      end
+      @configuration ||= Configuration.new
     end
 
     def configure
@@ -77,19 +83,13 @@ module RerankerRuby
     end
 
     def reset_configuration!
-      @config_mutex ||= Mutex.new
-      @config_mutex.synchronize do
-        @configuration = Configuration.new
-        @reranker = nil
-      end
+      @configuration = Configuration.new
+      @reranker = nil
     end
 
     # Global reranker instance built from configuration
     def reranker
-      @config_mutex ||= Mutex.new
-      @config_mutex.synchronize do
-        @reranker ||= configuration.build_reranker
-      end
+      @reranker ||= configuration.build_reranker
     end
 
     # Convenience method for quick reranking
